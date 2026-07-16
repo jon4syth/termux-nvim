@@ -15,6 +15,54 @@ install_package() {
     echo "$1 installed"
 }
 
+# Function to install and setup lazy.nvim
+install_lazy_nvim() {
+    if [! -d "lua" ]; then
+        echo "Installing lazy.nvim..."
+        mkdir -p "lua/config"
+        cd "lua/config"
+        cat >> "lazy.lua" << 'EOF'
+        -- Boostrap lazy.nvim
+        local lazypath = vim.fn.stdpath("data") .. "/lazy/lazy.nvim"
+        if not (vim.uv or vim.loop).fs_stat(lazypath) then
+            local lazyrepo = "https://github.com/folke/lazy.nvim.git"
+            local out = vim.fn.system({ "git", "clone", "--filter=blob:none", "--branch=stable", lazyrepo, lazypath })
+            if vim.v.shell_error ~= 0 then
+                vim.api.nvim_echo({
+                    { "Failed to clone lazy.nvim:\n", "ErrorMsg' },
+                    {out, "WarningMsg" },
+                    { "\nPress any key to exit..." },
+                }, true, {})
+                vim.fn.getchar()
+                os.exit(1)
+            end
+        end
+        vim.opt.rtp:prepend(lazypath)
+
+        -- Make sure to setup `mapleader and `maplocalleader` before
+        -- loading lazy.nvim so that mappings are correct.
+        -- This is also a good place to setup other settings (vim.opt)
+        vim.g.mapleader = " "
+        vim.g.maplocalleader = "\\"
+
+        -- Setup lazy.nvim
+        require("lazy").setup({
+            spec = {
+                -- import your plugins
+                { import = "plugins" },
+            },
+            -- Configure any other settings here. See the documentation for more details.
+            -- colorscheme that will be used when installing plugins.
+            install = { colorscheme = { "habamax" } },
+            -- automatically check for plugin updates
+            checker = { enabled = true },
+        })
+EOF
+    else
+        echo "nvim/lua already exists!"
+    fi
+}
+
 echo "TERMUX STARTUP"
 
 # Prompt for storage access
@@ -31,7 +79,7 @@ echo "Installing packages and dependencies"
 echo "-----------------------------"
 
 # List of packages to install (optimized for mobile)
-packages="python neovim nodejs git curl openssl openssh wget gh ruby php golang rust build-essential clang vim tmux sqlite imagemagick neofetch tree nano htop proot-distro fortune cowsay cmatrix"
+packages="python neovim nodejs git curl openssl openssh wget gh ruby php golang rust rust-analyzer rust-std-wasm32-unknown-unknown build-essential clang vim tmux sqlite imagemagick neofetch tree nano htop proot-distro fortune cowsay cmatrix"
 
 for package in $packages; do
     install_package "$package"
@@ -166,12 +214,12 @@ echo "🎨 Beautified Bash configuration with colors and mobile shortcuts!"
 
 # Neovim Setup
 echo "NEOVIM STARTUP"
-if [ ! -d ~/.local/share/nvim/site/pack/packer/start/packer.nvim ]; then
-    git clone --depth 1 https://github.com/wbthomason/packer.nvim ~/.local/share/nvim/site/pack/packer/start/packer.nvim || { echo "Error cloning Neovim"; exit 1; }
-else
-    echo "Destination path '~/.local/share/nvim/site/pack/packer/start/packer.nvim' already exists and is not an empty directory. Skipping clone."
-fi
-
+#if [ ! -d ~/.local/share/nvim/site/pack/packer/start/packer.nvim ]; then
+#    git clone --depth 1 https://github.com/wbthomason/packer.nvim ~/.local/share/nvim/site/pack/packer/start/packer.nvim || { echo "Error cloning Neovim"; exit 1; }
+#else
+#    echo "Destination path '~/.local/share/nvim/site/pack/packer/start/packer.nvim' already exists and is not an empty directory. Skipping clone."
+#fi
+#
 cd
 
 foldername=".config"
@@ -186,168 +234,177 @@ fi
 
 nvim_dir="nvim"
 
-if [ ! -d "$nvim_dir" ]; then
-    echo "Cloning the git repository for Neovim plugin setup"
-    git clone https://github.com/derekzyl/nvim.git || { echo "Error cloning Neovim repository"; exit 1; }
+if [ -d "$nvim_dir" ]; then
+    echo "Moving to nvim folder"
+    cd nvim || { echo "Error changing to nvim"; exit 1; }
+    setup_lazy_nvim
 else
-    echo "An existing 'nvim' folder was found. Do you want to delete it and clone again? [y|Y|n|N]"
-
-    read -p "[y|Y|n|N]"  user_input_nvim
-
-    if [ "$user_input_nvim" = "y" ] || [ "$user_input_nvim" = "Y" ]; then
-        echo "Removing the 'nvim' folder..."
-        rm -rf "$nvim_dir"
-
-        echo "Removed 'nvim' folder, cloning 'nvim.git'..."
-        git clone https://github.com/derekzyl/nvim.git || { echo "Error cloning Neovim repository"; exit 1; }
-    else
-        echo "Exiting 'nvim' plugin cloning."
-    fi
+    echo "Creating nvim and changing directory to nvim"
+    mkdir "$nvim_dir" && cd "$nvim_dir" || { echo "Error creating nvim"; exit 1; }
+    setup_lazy_nvim
 fi
-
-echo "Would you want to make Neovim your default code editor in Termux? [Y|y|N|n]"
-
-read -p  "[y|Y|n|N]"  user_input_neovim
-
-if [ "$user_input_neovim" = "y" ] || [ "$user_input_neovim" = "Y" ]; then
-    ln -s /data/data/com.termux/files/usr/bin/nvim ~/bin/termux-file-editor || { echo "Error creating symlink";}
-    echo "You have made Neovim your code editor"
-else
-    echo "You chose not to make Neovim your default code editor."
-fi
-
-echo "=========================================="
-echo "⚠️  IMPORTANT DISCLAIMER FOR BEAUTIFICATION ⚠️"
-echo "=========================================="
-echo "Before proceeding with beautification, please ensure:"
-echo "1. Your terminal is ZOOMED IN to display more characters"
-echo "2. Your screen size can accommodate the T-Header display"
-echo "3. T-Header may not work properly on smaller screen sizes"
-echo ""
-echo "This is designed to help you start coding on your phone with ease!"
-echo "=========================================="
-echo ""
-echo "Would you want to add beautifications to your Termux like a custom name and extra shortcuts? [Y|y|N|n]"
-
-read -p "[y|Y|n|N]" user_input_t
-
-
-echo "$user_input_t"
-
-if [ "$user_input_t" = "y" ] || [ "$user_input_t" = "Y" ]; then
-    echo "Installing T-Header specific packages..."
-    echo "-----------------------------------"
-    
-    # T-Header specific packages
-    t_header_packages="fd figlet boxes gum bat logo-ls eza zsh timg fzf"
-    
-    for package in $t_header_packages; do
-        install_package "$package"
-    done
-    
-    # Install lolcat gem for T-Header
-    echo "Installing lolcat gem for T-Header..."
-    gem install lolcat || { echo "Error installing lolcat gem"; exit 1; }
-    echo "lolcat gem installed"
-    
-    echo "Setting up T-Header beautification..."
-    cd || { echo "Error changing to home directory"; exit 1; }
-    git clone https://github.com/remo7777/T-Header.git || { echo "Error cloning T-Header repository"; exit 1; }
-    cd T-Header/ || { echo "Error changing to T-Header directory"; exit 1; }
-    bash t-header.sh || { echo "Error running t-header.sh"; exit 1; }
-    
-    # Configure Zsh aliases since T-Header uses Oh My Zsh
-    echo "Configuring Zsh aliases for mobile usage..."
-    cat >> ~/.zshrc << 'EOF'
-
-# Mobile Termux optimizations for Zsh
-alias ll='ls -la'
-alias la='ls -A'
-alias l='ls -CF'
-alias ..='cd ..'
-alias ...='cd ../..'
-alias ....='cd ../../..'
-alias grep='grep --color=auto'
-alias fgrep='fgrep --color=auto'
-alias egrep='egrep --color=auto'
-
-# Mobile shortcuts
-alias projects='cd ~/projects'
-alias downloads='cd ~/downloads'
-alias scripts='cd ~/scripts'
-alias nv='nvim'
-alias py='python'
-alias pip='pip3'
-
-# Git shortcuts
-alias gs='git status'
-alias ga='git add'
-alias gc='git commit'
-alias gp='git push'
-alias gl='git log --oneline'
-
-# Mobile-friendly file operations
-alias cp='cp -i'
-alias mv='mv -i'
-alias rm='rm -i'
-
-# Quick navigation
-alias home='cd ~'
-alias config='cd ~/.config'
-
-# Zsh-specific mobile optimizations
-alias -g ...='../..'
-alias -g ....='../../..'
-alias -g .....='../../../..'
-
-# Oh My Zsh mobile enhancements
-export ZSH_THEME="robbyrussell"  # You can change this to your preferred theme
-export ZSH_CUSTOM="$HOME/.oh-my-zsh/custom"
-
-EOF
-    
-    echo "Zsh aliases and mobile optimizations configured"
-    echo "Successfully beautified Termux and added some nice looks"
-    echo "-----------------------------------"
-    echo "To remove the banner and custom name, use this:"
-    echo "cd ~/T-Header && bash t-header.sh --remove && exit"
-else
-    echo "You chose not to add beautifications to Termux."
-fi
-
-# Mobile usage tips
-echo "=========================================="
-echo "📱 MOBILE TERMUX USAGE TIPS 📱"
-echo "=========================================="
-echo "1. Use Ctrl+Z to suspend processes, 'fg' to resume"
-echo "2. Use 'htop' to monitor system resources"
-echo "3. Use 'tree' to visualize directory structure"
-echo "4. Use 'proot-distro' to run Linux distributions"
-echo "5. Use 'tmux' for persistent sessions"
-echo "6. Use 'nano' for quick text editing"
-echo "7. Use 'git' shortcuts: gs, ga, gc, gp, gl"
-echo "8. Use 'projects', 'downloads', 'scripts' to navigate"
-echo "9. Use 'nv' instead of 'nvim' for faster typing"
-echo "10. Use 'py' instead of 'python' for faster typing"
-echo ""
-echo "🎨 BASH BEAUTIFICATION FEATURES:"
-echo "   - Type 'help' for a complete command reference"
-echo "   - Colorized output for better readability"
-echo "   - Enhanced prompt with emojis and colors"
-echo "   - Fun commands: weather, matrix, cowsay, fortune"
-echo "   - Development helpers: serve, ports, myip"
-echo "   - Visual feedback for directory changes"
-echo ""
-if [ "$user_input_t" = "y" ] || [ "$user_input_t" = "Y" ]; then
-    echo "🔧 ZSH/OH-MY-ZSH FEATURES:"
-    echo "   - Tab completion is enhanced with Oh My Zsh"
-    echo "   - Use '...' and '....' for quick directory navigation"
-    echo "   - Zsh globbing: use ** for recursive searches"
-    echo "   - History search with Ctrl+R"
-    echo "   - Auto-suggestions and syntax highlighting"
-    echo ""
-fi
-echo "💡 Pro tip: Pin Termux to your recent apps for quick access!"
-echo "=========================================="
-
-echo "Happy hacking!!! 😊😊⚡⚡⚡😎😎"
+#if [ ! -d "$nvim_dir" ]; then
+#    echo "Cloning the git repository for Neovim plugin setup"
+#    git clone https://github.com/derekzyl/nvim.git || { echo "Error cloning Neovim repository"; exit 1; }
+#else
+#    echo "An existing 'nvim' folder was found. Do you want to delete it and clone again? [y|Y|n|N]"
+#
+#    read -p "[y|Y|n|N]"  user_input_nvim
+#
+#    if [ "$user_input_nvim" = "y" ] || [ "$user_input_nvim" = "Y" ]; then
+#        echo "Removing the 'nvim' folder..."
+#        rm -rf "$nvim_dir"
+#
+#        echo "Removed 'nvim' folder, cloning 'nvim.git'..."
+#        git clone https://github.com/derekzyl/nvim.git || { echo "Error cloning Neovim repository"; exit 1; }
+#    else
+#        echo "Exiting 'nvim' plugin cloning."
+#    fi
+#fi
+#
+#echo "Would you want to make Neovim your default code editor in Termux? [Y|y|N|n]"
+#
+#read -p  "[y|Y|n|N]"  user_input_neovim
+#
+#if [ "$user_input_neovim" = "y" ] || [ "$user_input_neovim" = "Y" ]; then
+#    ln -s /data/data/com.termux/files/usr/bin/nvim ~/bin/termux-file-editor || { echo "Error creating symlink";}
+#    echo "You have made Neovim your code editor"
+#else
+#    echo "You chose not to make Neovim your default code editor."
+#fi
+#
+#echo "=========================================="
+#echo "⚠️  IMPORTANT DISCLAIMER FOR BEAUTIFICATION ⚠️"
+#echo "=========================================="
+#echo "Before proceeding with beautification, please ensure:"
+#echo "1. Your terminal is ZOOMED IN to display more characters"
+#echo "2. Your screen size can accommodate the T-Header display"
+#echo "3. T-Header may not work properly on smaller screen sizes"
+#echo ""
+#echo "This is designed to help you start coding on your phone with ease!"
+#echo "=========================================="
+#echo ""
+#echo "Would you want to add beautifications to your Termux like a custom name and extra shortcuts? [Y|y|N|n]"
+#
+#read -p "[y|Y|n|N]" user_input_t
+#
+#
+#echo "$user_input_t"
+#
+#if [ "$user_input_t" = "y" ] || [ "$user_input_t" = "Y" ]; then
+#    echo "Installing T-Header specific packages..."
+#    echo "-----------------------------------"
+#    
+#    # T-Header specific packages
+#    t_header_packages="fd figlet boxes gum bat logo-ls eza zsh timg fzf"
+#    
+#    for package in $t_header_packages; do
+#        install_package "$package"
+#    done
+#    
+#    # Install lolcat gem for T-Header
+#    echo "Installing lolcat gem for T-Header..."
+#    gem install lolcat || { echo "Error installing lolcat gem"; exit 1; }
+#    echo "lolcat gem installed"
+#    
+#    echo "Setting up T-Header beautification..."
+#    cd || { echo "Error changing to home directory"; exit 1; }
+#    git clone https://github.com/remo7777/T-Header.git || { echo "Error cloning T-Header repository"; exit 1; }
+#    cd T-Header/ || { echo "Error changing to T-Header directory"; exit 1; }
+#    bash t-header.sh || { echo "Error running t-header.sh"; exit 1; }
+#    
+#    # Configure Zsh aliases since T-Header uses Oh My Zsh
+#    echo "Configuring Zsh aliases for mobile usage..."
+#    cat >> ~/.zshrc << 'EOF'
+#
+## Mobile Termux optimizations for Zsh
+#alias ll='ls -la'
+#alias la='ls -A'
+#alias l='ls -CF'
+#alias ..='cd ..'
+#alias ...='cd ../..'
+#alias ....='cd ../../..'
+#alias grep='grep --color=auto'
+#alias fgrep='fgrep --color=auto'
+#alias egrep='egrep --color=auto'
+#
+## Mobile shortcuts
+#alias projects='cd ~/projects'
+#alias downloads='cd ~/downloads'
+#alias scripts='cd ~/scripts'
+#alias nv='nvim'
+#alias py='python'
+#alias pip='pip3'
+#
+## Git shortcuts
+#alias gs='git status'
+#alias ga='git add'
+#alias gc='git commit'
+#alias gp='git push'
+#alias gl='git log --oneline'
+#
+## Mobile-friendly file operations
+#alias cp='cp -i'
+#alias mv='mv -i'
+#alias rm='rm -i'
+#
+## Quick navigation
+#alias home='cd ~'
+#alias config='cd ~/.config'
+#
+## Zsh-specific mobile optimizations
+#alias -g ...='../..'
+#alias -g ....='../../..'
+#alias -g .....='../../../..'
+#
+## Oh My Zsh mobile enhancements
+#export ZSH_THEME="robbyrussell"  # You can change this to your preferred theme
+#export ZSH_CUSTOM="$HOME/.oh-my-zsh/custom"
+#
+#EOF
+#    
+#    echo "Zsh aliases and mobile optimizations configured"
+#    echo "Successfully beautified Termux and added some nice looks"
+#    echo "-----------------------------------"
+#    echo "To remove the banner and custom name, use this:"
+#    echo "cd ~/T-Header && bash t-header.sh --remove && exit"
+#else
+#    echo "You chose not to add beautifications to Termux."
+#fi
+#
+## Mobile usage tips
+#echo "=========================================="
+#echo "📱 MOBILE TERMUX USAGE TIPS 📱"
+#echo "=========================================="
+#echo "1. Use Ctrl+Z to suspend processes, 'fg' to resume"
+#echo "2. Use 'htop' to monitor system resources"
+#echo "3. Use 'tree' to visualize directory structure"
+#echo "4. Use 'proot-distro' to run Linux distributions"
+#echo "5. Use 'tmux' for persistent sessions"
+#echo "6. Use 'nano' for quick text editing"
+#echo "7. Use 'git' shortcuts: gs, ga, gc, gp, gl"
+#echo "8. Use 'projects', 'downloads', 'scripts' to navigate"
+#echo "9. Use 'nv' instead of 'nvim' for faster typing"
+#echo "10. Use 'py' instead of 'python' for faster typing"
+#echo ""
+#echo "🎨 BASH BEAUTIFICATION FEATURES:"
+#echo "   - Type 'help' for a complete command reference"
+#echo "   - Colorized output for better readability"
+#echo "   - Enhanced prompt with emojis and colors"
+#echo "   - Fun commands: weather, matrix, cowsay, fortune"
+#echo "   - Development helpers: serve, ports, myip"
+#echo "   - Visual feedback for directory changes"
+#echo ""
+#if [ "$user_input_t" = "y" ] || [ "$user_input_t" = "Y" ]; then
+#    echo "🔧 ZSH/OH-MY-ZSH FEATURES:"
+#    echo "   - Tab completion is enhanced with Oh My Zsh"
+#    echo "   - Use '...' and '....' for quick directory navigation"
+#    echo "   - Zsh globbing: use ** for recursive searches"
+#    echo "   - History search with Ctrl+R"
+#    echo "   - Auto-suggestions and syntax highlighting"
+#    echo ""
+#fi
+#echo "💡 Pro tip: Pin Termux to your recent apps for quick access!"
+#echo "=========================================="
+#
+#echo "Happy hacking!!! 😊😊⚡⚡⚡😎😎"
