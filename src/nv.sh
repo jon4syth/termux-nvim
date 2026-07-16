@@ -21,7 +21,11 @@ install_lazy_nvim() {
         echo "Installing lazy.nvim..."
         mkdir -p "lua/config"
         cd "lua/config"
+<<<<<<< HEAD
         cat >> "lazy.lua" << 'EOF'
+=======
+        echo >> "lazy.lua" << 'EOF'
+>>>>>>> refs/remotes/origin/lazy-nvim
         -- Boostrap lazy.nvim
         local lazypath = vim.fn.stdpath("data") .. "/lazy/lazy.nvim"
         if not (vim.uv or vim.loop).fs_stat(lazypath) then
@@ -53,8 +57,7 @@ install_lazy_nvim() {
             },
             -- Configure any other settings here. See the documentation for more details.
             -- colorscheme that will be used when installing plugins.
-            install = { colorscheme = { "habamax" } },
-            -- automatically check for plugin updates
+            install = { colorscheme = { "habamax" } }, -- automatically check for plugin updates
             checker = { enabled = true },
         })
 EOF
