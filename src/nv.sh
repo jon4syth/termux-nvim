@@ -236,11 +236,11 @@ nvim_dir="nvim"
 if [ -d "$nvim_dir" ]; then
     echo "Moving to nvim folder"
     cd nvim || { echo "Error changing to nvim"; exit 1; }
-    setup_lazy_nvim
+    install_lazy_nvim()
 else
     echo "Creating nvim and changing directory to nvim"
     mkdir "$nvim_dir" && cd "$nvim_dir" || { echo "Error creating nvim"; exit 1; }
-    setup_lazy_nvim
+    install_lazy_nvim
 fi
 #if [ ! -d "$nvim_dir" ]; then
 #    echo "Cloning the git repository for Neovim plugin setup"
